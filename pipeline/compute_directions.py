@@ -198,6 +198,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--chat_model_name", type=str, required=True, help="Path to the model"
     )
+    parser.add_argument("--output_folder", type=str, required=True)
     parser.add_argument("--n_train", type=int, default=128)
     parser.add_argument("--n_val", type=int, default=32)
     args = parser.parse_args()
