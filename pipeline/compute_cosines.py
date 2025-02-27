@@ -149,6 +149,7 @@ def add_instr_suffix(suffix, dataset):
                 "instruction": "{}{}".format(suffix, ex["instruction"]),
             }
         )
+    return ds
 
 
 def main(args):
