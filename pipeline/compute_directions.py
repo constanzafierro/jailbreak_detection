@@ -7,7 +7,6 @@ from transformers import (
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
-    QWenLMHeadModel,
 )
 import random
 from dataclasses import dataclass
@@ -65,8 +64,9 @@ class ModelAndTokenizer:
         return model_to_tokens[self.model_name]
 
     def get_module(self, module):
-        model_to_modules = {QWenLMHeadModel: {"layer": self.model.transformer.h}}
-        return model_to_modules[type(self.model)][module]
+        if "qwen" in self.model_name.lower():
+            model_to_modules = {"layer": self.model.transformer.h}
+        return model_to_modules[module]
 
 
 def get_average_reprs(model_and_tokenizer, dataset):
