@@ -115,7 +115,7 @@ def load_and_sample_datasets(n_train, n_val):
     return harmful_train, harmless_train, harmful_val, harmless_val
 
 
-def filter_data(model_base, harmful_train, harmless_train, harmful_val, harmless_val):
+def filter_data(model_base, harmful_train, harmless_train):
     """
     Filter datasets based on refusal scores.
 
@@ -195,10 +195,11 @@ def main(args):
         harmless_non_refused_train,
         # harmful_refused_val,
         # harmless_non_refused_val,
-    ) = filter_data(
-        chat_model, harmful_train, harmless_train, harmful_val, harmless_val
-    )
+    ) = filter_data(chat_model, harmful_train, harmless_train)
+    wandb.run.summary["n_harmful_refused_train"] = len(harmful_refused_train)
+    wandb.run.summary["harmless_non_refused_train"] = len(harmless_non_refused_train)
     print("Datasets filtered...")
+
     h_base = get_average_reprs(base_model, harmful_train) - get_average_reprs(
         base_model, harmless_train
     )
