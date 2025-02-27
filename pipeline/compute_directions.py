@@ -37,9 +37,9 @@ class ModelAndTokenizer:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model_name = model_name
         self.model = AutoModelForCausalLM.from_pretrained(
-            args.model_name, trust_remote_code=True
+            model_name, trust_remote_code=True
         ).to(device)
-        self.tokenizer = AutoTokenizer.from_pretrained(args.base_model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = self.model.eval()
         self.tokenizer.padding_side = "left"
 
