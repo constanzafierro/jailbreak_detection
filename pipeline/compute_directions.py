@@ -46,11 +46,11 @@ class ModelAndTokenizer:
         self.model = self.model.eval()
         self.tokenizer.padding_side = "left"
 
-    def tokenize_instructions_fn(self, instructions):
+    def tokenize_instructions_fn(self):
         model_to_tokenize_fn = {"Qwen/Qwen-1_8B-Chat": tokenize_instructions_qwen_chat}
         if self.model_name not in model_to_tokenize_fn:
             return partial(tokenize_instructions, self.tokenizer)
-        return partial(model_to_tokenize_fn[self.model_name], self.tokenizer)
+        return partial(model_to_tokenize_fn[self.model_name], tokenizer=self.tokenizer)
 
     def refusal_toks(self):
         model_to_tokens = {"Qwen/Qwen-1_8B-Chat": QWEN_REFUSAL_TOKS}
