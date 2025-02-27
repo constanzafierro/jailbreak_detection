@@ -46,6 +46,13 @@ class ModelAndTokenizer:
         self.model = self.model.eval()
         self.tokenizer.padding_side = "left"
 
+        if self.tokenizer.pad_token is None:
+            if "qwen" in model_name.lower():
+                self.tokenizer.pad_token = "<|extra_0|>"
+                self.tokenizer.pad_token_id = self.tokenizer.eod_id
+            else:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+
     def tokenize_instructions_fn(self):
         model_to_tokenize_fn = {"Qwen/Qwen-1_8B-Chat": tokenize_instructions_qwen_chat}
         if self.model_name not in model_to_tokenize_fn:
