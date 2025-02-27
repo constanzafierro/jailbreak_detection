@@ -16,6 +16,7 @@ from pipeline.model_utils.qwen_model import (
     tokenize_instructions_qwen_chat,
     QWEN_REFUSAL_TOKS,
 )
+from functools import partial
 from pipeline.submodules.generate_directions import get_mean_activations
 
 
@@ -48,8 +49,8 @@ class ModelAndTokenizer:
     def tokenize_instructions_fn(self, instructions):
         model_to_tokenize_fn = {"Qwen/Qwen-1_8B-Chat": tokenize_instructions_qwen_chat}
         if self.model_name not in model_to_tokenize_fn:
-            return tokenize_instructions
-        return model_to_tokenize_fn[self.model_name]
+            return partial(tokenize_instructions, self.tokenizer)
+        return partial(model_to_tokenize_fn[self.model_name], self.tokenizer)
 
     def refusal_toks(self):
         model_to_tokens = {"Qwen/Qwen-1_8B-Chat": QWEN_REFUSAL_TOKS}
