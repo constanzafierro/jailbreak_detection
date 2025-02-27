@@ -27,7 +27,7 @@ def get_mean_cosine_pre_hook(
     layer,
     cache: Float[Tensor, "dirs layer"],
     n_samples,
-    d: Float[Tensor, "dirs d_model"],
+    d: Float[Tensor, "dirs layer d_model"],
     position: List[int],
 ):
     cos = nn.CosineSimilarity(dim=2)
@@ -36,7 +36,7 @@ def get_mean_cosine_pre_hook(
         activation: Float[Tensor, "batch_size seq_len d_model"] = (
             input[0].clone().to(cache)
         )
-        directions = d.unsqueeze(1)  # dirs, 1, d_model
+        directions = d[:, layer, :].unsqueeze(1)  # dirs, 1, d_model
         # batch_size, d_model -> 1, batch_size, d_model
         activation = activation[:, position, :].unsqueeze(0)
         cache[:, layer] += (1.0 / n_samples) * cos(directions, activation).sum(dim=1)
@@ -185,7 +185,7 @@ def main(args):
     for tensor_filename in glob(os.path.join(directions_folder, "*.pt")):
         direction_names.append(tensor_filename[:-3])
         directions.append(torch.load(os.path.join(directions_folder, tensor_filename)))
-    directions = torch.stack(directions).to(device)
+    directions = torch.concatenate(directions).to(device)
     for key, examples in tqdm(
         [
             ("harmful", harmful_test),
