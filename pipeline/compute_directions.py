@@ -1,23 +1,26 @@
 import argparse
-import wandb
-import torch
+import gc
 import os
+import random
+from dataclasses import dataclass
+from functools import partial
+
+import torch
+import wandb
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
 )
-import random
-from dataclasses import dataclass
+
 from dataset.load_dataset import load_dataset_split
-from pipeline.submodules.select_direction import get_refusal_scores
 from pipeline.model_utils.qwen_model import (
-    tokenize_instructions_qwen_chat,
     QWEN_REFUSAL_TOKS,
+    tokenize_instructions_qwen_chat,
 )
-from functools import partial
 from pipeline.submodules.generate_directions import get_mean_activations
+from pipeline.submodules.select_direction import get_refusal_scores
 
 
 def tokenize_instructions(tokenizer, instructions):
@@ -196,6 +199,9 @@ def main(args):
         base_model, harmless_train
     )
     torch.save(h_base, os.path.join(output_folder, "h_base.pt"))
+    del h_base
+    gc.collect()
+    torch.cuda.empty_cache()
     r_chat_base = get_average_reprs(
         chat_model, harmful_refused_train
     ) - get_average_reprs(base_model, harmful_refused_train)
@@ -206,6 +212,9 @@ def main(args):
     r_chat_base_ift = r_chat_base - d_ift
     torch.save(r_chat_base, os.path.join(output_folder, "r_chat_base.pt"))
     torch.save(r_chat_base_ift, os.path.join(output_folder, "r_chat_base_ift.pt"))
+    del d_ift, r_chat_base, r_chat_base_ift
+    gc.collect()
+    torch.cuda.empty_cache()
     r_chat = get_average_reprs(chat_model, harmful_refused_train) - get_average_reprs(
         chat_model, harmless_non_refused_train
     )
