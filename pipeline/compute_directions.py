@@ -126,13 +126,13 @@ def filter_data(model_base, harmful_train, harmless_train, harmful_val, harmless
         model_base.model,
         harmful_train,
         model_base.tokenize_instructions_fn(),
-        model_base.refusal_toks,
+        model_base.refusal_toks(),
     )
     harmless_train_scores = get_refusal_scores(
         model_base.model,
         harmless_train,
         model_base.tokenize_instructions_fn(),
-        model_base.refusal_toks,
+        model_base.refusal_toks(),
     )
     harmful_train = filter_examples(
         harmful_train, harmful_train_scores, 0, lambda x, y: x > y
@@ -145,13 +145,13 @@ def filter_data(model_base, harmful_train, harmless_train, harmful_val, harmless
         model_base.model,
         harmful_val,
         model_base.tokenize_instructions_fn(),
-        model_base.refusal_toks,
+        model_base.refusal_toks(),
     )
     harmless_val_scores = get_refusal_scores(
         model_base.model,
         harmless_val,
         model_base.tokenize_instructions_fn(),
-        model_base.refusal_toks,
+        model_base.refusal_toks(),
     )
     harmful_val = filter_examples(
         harmful_val, harmful_val_scores, 0, lambda x, y: x > y
