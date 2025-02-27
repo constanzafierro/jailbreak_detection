@@ -12,7 +12,11 @@ import random
 from dataclasses import dataclass
 from dataset.load_dataset import load_dataset_split
 from pipeline.submodules.select_direction import get_refusal_scores
-from pipeline.model_utils.qwen_model import tokenize_instructions_qwen_chat
+from pipeline.model_utils.qwen_model import (
+    tokenize_instructions_qwen_chat,
+    QWEN_REFUSAL_TOKS,
+)
+from pipeline.submodules.generate_directions import get_mean_activations
 
 
 def tokenize_instructions(tokenizer, instructions):
@@ -37,20 +41,26 @@ class ModelAndTokenizer:
     def tokenize_instructions_fn(self, instructions):
         model_to_tokenize_fn = {"Qwen/Qwen-1_8B-Chat": tokenize_instructions_qwen_chat}
         if self.model_name not in model_to_tokenize_fn:
-            return tokenize_instructions(self.tokenizer, instructions)
-        return model_to_tokenize_fn[self.model_name](self.tokenizer, instructions)
+            return tokenize_instructions
+        return model_to_tokenize_fn[self.model_name]
+
+    def refusal_toks(self):
+        model_to_tokens = {"Qwen/Qwen-1_8B-Chat": QWEN_REFUSAL_TOKS}
+        return model_to_tokens[self.model_name]
+
+    def layer_name(self, module):
+        model_to_modules = {"Qwen/Qwen-1_8B-Chat": {"layer": self.model.transformer.h}}
+        return model_to_modules[self.model_name][module]
 
 
 def get_average_reprs(model_and_tokenizer, dataset):
-    model = model_and_tokenizer.model
-    inp = model_and_tokenizer.tokenize_instructions_fn(dataset)
-    outputs = model.generate(
-        **inp, max_new_tokens=1, output_hidden_states=True, return_dict_in_generate=True
-    )
-    # future: we should select the best token to use, for now we use the last.
-    # each hidden_state: batch_size, sequence_length, hidden_size
-    return torch.stack(
-        [torch.mean(layer[:, -1, :], dim=0) for layer in outputs.hidden_states]
+    return get_mean_activations(
+        model_and_tokenizer.model,
+        model_and_tokenizer.tokenizer,
+        dataset,
+        model_and_tokenizer.tokenize_instructions_fn,
+        model_and_tokenizer.model_to_modules("layer"),
+        positions=[-1],  # future: select best token
     )
 
 
@@ -160,6 +170,7 @@ def main(args):
     harmful_train, harmless_train, harmful_val, harmless_val = load_and_sample_datasets(
         args.n_train, args.n_val
     )
+    print("Datasets loaded...")
     # Filter datasets based on refusal scores
     (
         harmful_refused_train,
@@ -169,7 +180,7 @@ def main(args):
     ) = filter_data(
         chat_model.model, harmful_train, harmless_train, harmful_val, harmless_val
     )
-
+    print("Datasets filtered...")
     h_base = get_average_reprs(base_model, harmful_train) - get_average_reprs(
         base_model, harmless_train
     )
