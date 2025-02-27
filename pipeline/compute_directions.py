@@ -28,13 +28,18 @@ def tokenize_instructions(tokenizer, instructions):
     )
 
 
-@dataclass
 class ModelAndTokenizer:
     model_name: str
     model: PreTrainedModel
     tokenizer: PreTrainedTokenizer
 
-    def __post_init__(self):
+    def __init__(self, model_name):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model_name = model_name
+        self.model = AutoModelForCausalLM.from_pretrained(
+            args.model_name, trust_remote_code=True
+        ).to(device)
+        self.tokenizer = AutoTokenizer.from_pretrained(args.base_model_name)
         self.model = self.model.eval()
         self.tokenizer.padding_side = "left"
 
@@ -159,13 +164,8 @@ def main(args):
     os.makedirs(output_folder, exist_ok=True)
     wandb.run.summary["final_output_folder"] = output_folder
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = AutoModelForCausalLM.from_pretrained(args.base_model_name).to(device)
-    tokenizer = AutoTokenizer.from_pretrained(args.base_model_name)
-    base_model = ModelAndTokenizer(model, tokenizer)
-    model = AutoModelForCausalLM.from_pretrained(args.chat_model_name).to(device)
-    tokenizer = AutoTokenizer.from_pretrained(args.chat_model_name)
-    chat_model = ModelAndTokenizer(model, tokenizer)
+    base_model = ModelAndTokenizer(args.base_model_name)
+    chat_model = ModelAndTokenizer(args.chat_model_name)
 
     harmful_train, harmless_train, harmful_val, harmless_val = load_and_sample_datasets(
         args.n_train, args.n_val
