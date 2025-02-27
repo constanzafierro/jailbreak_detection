@@ -183,14 +183,18 @@ def main(args):
         direction_names.append(tensor_filename[:-3])
         directions.append(torch.load(os.path.join(directions_folder, tensor_filename)))
     directions = torch.stack(directions).to(device)
-    for key, examples in [
-        ("harmful", harmful_test),
-        ("harmless", harmless_test),
-        (
-            "harmful_jailbreak",
-            add_instr_suffix(JAILBREAK_SUFFIX[args.chat_model_name], harmful_refusal),
-        ),
-    ]:
+    for key, examples in tqdm(
+        [
+            ("harmful", harmful_test),
+            ("harmless", harmless_test),
+            (
+                "harmful_jailbreak",
+                add_instr_suffix(
+                    JAILBREAK_SUFFIX[args.chat_model_name], harmful_refusal
+                ),
+            ),
+        ]
+    ):
         cosine = get_mean_cosine_activations(
             model_and_tokenizer.model,
             model_and_tokenizer.tokenizer,
