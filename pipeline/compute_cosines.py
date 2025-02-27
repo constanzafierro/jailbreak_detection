@@ -168,7 +168,9 @@ def main(args):
 
     jailbreak_bench = load_dataset("jailbreakbench")
     harmbench = load_dataset("harmbench_test")
-    harmful_refusal = filter_data(model_and_tokenizer, jailbreak_bench + harmbench, [])
+    harmful_refusal, _ = filter_data(
+        model_and_tokenizer, jailbreak_bench + harmbench, []
+    )
     random.seed(42)
     harmful_test = random.sample(jailbreak_bench + harmbench, args.n_test)
     if len(harmful_refusal) > args.n_test:
