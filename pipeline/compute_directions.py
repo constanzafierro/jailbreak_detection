@@ -73,13 +73,17 @@ class ModelAndTokenizer:
 
 
 def get_average_reprs(model_and_tokenizer, dataset):
-    return get_mean_activations(
-        model_and_tokenizer.model,
-        model_and_tokenizer.tokenizer,
-        dataset,
-        model_and_tokenizer.tokenize_instructions_fn(),
-        model_and_tokenizer.get_module("layer"),
-        positions=[-1],  # future: select best token
+    return (
+        get_mean_activations(
+            model_and_tokenizer.model,
+            model_and_tokenizer.tokenizer,
+            dataset,
+            model_and_tokenizer.tokenize_instructions_fn(),
+            model_and_tokenizer.get_module("layer"),
+            positions=[-1],  # future: select best token
+        )
+        .detach()
+        .cpu()
     )
 
 
@@ -201,7 +205,6 @@ def main(args):
     torch.save(h_base, os.path.join(output_folder, "h_base.pt"))
     del h_base
     gc.collect()
-    torch.cuda.empty_cache()
     r_chat_base = get_average_reprs(
         chat_model, harmful_refused_train
     ) - get_average_reprs(base_model, harmful_refused_train)
@@ -214,7 +217,6 @@ def main(args):
     torch.save(r_chat_base_ift, os.path.join(output_folder, "r_chat_base_ift.pt"))
     del d_ift, r_chat_base, r_chat_base_ift
     gc.collect()
-    torch.cuda.empty_cache()
     r_chat = get_average_reprs(chat_model, harmful_refused_train) - get_average_reprs(
         chat_model, harmless_non_refused_train
     )
