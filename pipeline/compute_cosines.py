@@ -219,7 +219,7 @@ if __name__ == "__main__":
 
     wandb.init(
         project="safety_refusal_cosine",
-        name=" ".join([args.model_name]),
+        name=" ".join([args.chat_model_name]),
         config=args,
     )
 
