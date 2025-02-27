@@ -63,7 +63,7 @@ class ModelAndTokenizer:
         model_to_tokens = {"Qwen/Qwen-1_8B-Chat": QWEN_REFUSAL_TOKS}
         return model_to_tokens[self.model_name]
 
-    def layer_name(self, module):
+    def get_module(self, module):
         model_to_modules = {"Qwen/Qwen-1_8B-Chat": {"layer": self.model.transformer.h}}
         return model_to_modules[self.model_name][module]
 
@@ -74,7 +74,7 @@ def get_average_reprs(model_and_tokenizer, dataset):
         model_and_tokenizer.tokenizer,
         dataset,
         model_and_tokenizer.tokenize_instructions_fn(),
-        model_and_tokenizer.model_to_modules("layer"),
+        model_and_tokenizer.get_module("layer"),
         positions=[-1],  # future: select best token
     )
 
