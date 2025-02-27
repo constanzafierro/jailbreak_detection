@@ -39,7 +39,9 @@ class ModelAndTokenizer:
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name, trust_remote_code=True
         ).to(device)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name, trust_remote_code=True
+        )
         self.model = self.model.eval()
         self.tokenizer.padding_side = "left"
 
