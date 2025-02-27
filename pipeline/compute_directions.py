@@ -180,7 +180,7 @@ def main(args):
         # harmful_refused_val,
         # harmless_non_refused_val,
     ) = filter_data(
-        chat_model.model, harmful_train, harmless_train, harmful_val, harmless_val
+        chat_model, harmful_train, harmless_train, harmful_val, harmless_val
     )
     print("Datasets filtered...")
     h_base = get_average_reprs(base_model, harmful_train) - get_average_reprs(
