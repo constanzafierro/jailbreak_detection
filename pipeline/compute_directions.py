@@ -72,7 +72,7 @@ class ModelAndTokenizer:
         return model_to_modules[module]
 
 
-def get_average_reprs(model_and_tokenizer, dataset):
+def get_average_reprs(model_and_tokenizer, dataset, batch_size):
     return (
         get_mean_activations(
             model_and_tokenizer.model,
@@ -81,6 +81,7 @@ def get_average_reprs(model_and_tokenizer, dataset):
             model_and_tokenizer.tokenize_instructions_fn(),
             model_and_tokenizer.get_module("layer"),
             positions=[-1],  # future: select best token
+            batch_size=batch_size,
         )
         .detach()
         .cpu()
@@ -115,7 +116,7 @@ def load_and_sample_datasets(n_train, n_val):
     return harmful_train, harmless_train, harmful_val, harmless_val
 
 
-def filter_data(model_base, harmful_train, harmless_train):
+def filter_data(model_base, harmful_train, harmless_train, batch_size):
     """
     Filter datasets based on refusal scores.
 
@@ -135,12 +136,14 @@ def filter_data(model_base, harmful_train, harmless_train):
         harmful_train,
         model_base.tokenize_instructions_fn(),
         model_base.refusal_toks(),
+        batch_size=batch_size,
     )
     harmless_train_scores = get_refusal_scores(
         model_base.model,
         harmless_train,
         model_base.tokenize_instructions_fn(),
         model_base.refusal_toks(),
+        batch_size=batch_size,
     )
     harmful_train = filter_examples(
         harmful_train, harmful_train_scores, 0, lambda x, y: x > y
@@ -176,6 +179,7 @@ def main(args):
         [
             args.base_model_name.replace("/", "__"),
             args.chat_model_name.replace("/", "__"),
+            args.exp_name,
         ]
     )
     output_folder = os.path.join(args.output_folder, exp_dir)
@@ -195,32 +199,32 @@ def main(args):
         harmless_non_refused_train,
         # harmful_refused_val,
         # harmless_non_refused_val,
-    ) = filter_data(chat_model, harmful_train, harmless_train)
+    ) = filter_data(chat_model, harmful_train, harmless_train, args.batch_size)
     wandb.run.summary["n_harmful_refused_train"] = len(harmful_refused_train)
     wandb.run.summary["harmless_non_refused_train"] = len(harmless_non_refused_train)
     print("Datasets filtered...")
 
-    h_base = get_average_reprs(base_model, harmful_train) - get_average_reprs(
-        base_model, harmless_train
-    )
+    h_base = get_average_reprs(
+        base_model, harmful_train, args.batch_size
+    ) - get_average_reprs(base_model, harmless_train, args.batch_size)
     torch.save(h_base, os.path.join(output_folder, "h_base.pt"))
     del h_base
     gc.collect()
     r_chat_base = get_average_reprs(
-        chat_model, harmful_refused_train
-    ) - get_average_reprs(base_model, harmful_refused_train)
+        chat_model, harmful_refused_train, args.batch_size
+    ) - get_average_reprs(base_model, harmful_refused_train, args.batch_size)
     d_ift = get_average_reprs(
-        chat_model, harmful_train + harmless_train
-    ) - get_average_reprs(base_model, harmful_train + harmless_train)
+        chat_model, harmful_train + harmless_train, args.batch_size
+    ) - get_average_reprs(base_model, harmful_train + harmless_train, args.batch_size)
     # r = x_refused - x_base - d_ift
     r_chat_base_ift = r_chat_base - d_ift
     torch.save(r_chat_base, os.path.join(output_folder, "r_chat_base.pt"))
     torch.save(r_chat_base_ift, os.path.join(output_folder, "r_chat_base_ift.pt"))
     del d_ift, r_chat_base, r_chat_base_ift
     gc.collect()
-    r_chat = get_average_reprs(chat_model, harmful_refused_train) - get_average_reprs(
-        chat_model, harmless_non_refused_train
-    )
+    r_chat = get_average_reprs(
+        chat_model, harmful_refused_train, args.batch_size
+    ) - get_average_reprs(chat_model, harmless_non_refused_train, args.batch_size)
     torch.save(r_chat, os.path.join(output_folder, "r_chat.pt"))
 
 
@@ -233,6 +237,8 @@ if __name__ == "__main__":
         "--chat_model_name", type=str, required=True, help="Path to the model"
     )
     parser.add_argument("--output_folder", type=str, required=True)
+    parser.add_argument("--exp_name", type=str, default="last")
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--n_train", type=int, default=128)
     parser.add_argument("--n_val", type=int, default=32)
     args = parser.parse_args()

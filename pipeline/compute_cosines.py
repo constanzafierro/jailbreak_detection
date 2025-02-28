@@ -156,12 +156,13 @@ def add_instr_suffix(suffix, dataset, instructions_only=False):
     return ds
 
 
-def split_by_refusal(model_and_tokenizer, harmful_data):
+def split_by_refusal(model_and_tokenizer, harmful_data, batch_size):
     harmful_scores = get_refusal_scores(
         model_and_tokenizer.model,
         harmful_data,
         model_and_tokenizer.tokenize_instructions_fn(),
         model_and_tokenizer.refusal_toks(),
+        batch_size=batch_size,
     )
     refused = []
     non_refused = []
@@ -178,6 +179,7 @@ def main(args):
         [
             args.base_model_name.replace("/", "__"),
             args.chat_model_name.replace("/", "__"),
+            args.exp_name,
         ]
     )
     output_folder = os.path.join(args.output_folder, exp_dir)
@@ -190,20 +192,17 @@ def main(args):
 
     _, _, harmful_val, harmless_val = load_and_sample_datasets(args.n_train, args.n_val)
     harmful_val_refused, harmful_val_non_refused = split_by_refusal(
-        model_and_tokenizer, harmful_val
+        model_and_tokenizer, harmful_val, args.batch_size
     )
     jailbreak_bench = load_dataset("jailbreakbench", instructions_only=True)
     harmbench = load_dataset("harmbench_test", instructions_only=True)
     harmful_test_refused, harmful_test_non_refused = split_by_refusal(
-        model_and_tokenizer, jailbreak_bench + harmbench
+        model_and_tokenizer, jailbreak_bench + harmbench, args.batch_size
     )
     jailbreak_suffix = add_instr_suffix(
         JAILBREAK_SUFFIX[args.chat_model_name],
         harmful_test_refused,
         instructions_only=True,
-    )
-    jailbreak_refused, jailbreak_non_refused = split_by_refusal(
-        model_and_tokenizer, jailbreak_suffix
     )
 
     random.seed(42)
@@ -241,8 +240,7 @@ def main(args):
             ("harmless_val", harmless_val),
             ("harmful_val_refused", harmful_val_refused),
             ("harmful_val_non_refused", harmful_val_non_refused),
-            ("harmful_test_jailbreak_refused", jailbreak_refused),
-            ("harmful_test_jailbreak_non_refused", jailbreak_non_refused),
+            ("harmful_test_jailbreak_suffix", jailbreak_suffix),
         ]
     ):
         if len(examples) == 0:
@@ -278,6 +276,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_train", type=int, default=128)
     parser.add_argument("--n_val", type=int, default=32)
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--exp_name", type=str, default="last")
     args = parser.parse_args()
 
     wandb.init(
