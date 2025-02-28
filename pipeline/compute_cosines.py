@@ -235,7 +235,9 @@ def main(args):
             (
                 "harmful_test_jailbreak",
                 add_instr_suffix(
-                    JAILBREAK_SUFFIX[args.chat_model_name], harmful_test_non_refused
+                    JAILBREAK_SUFFIX[args.chat_model_name],
+                    harmful_test_non_refused,
+                    instructions_only=True,
                 ),
             ),
         ]
