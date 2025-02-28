@@ -230,18 +230,16 @@ def main(args):
             ("harmful_val_refused", harmful_val_refused),
             ("harmful_val_non_refused", harmful_val_non_refused),
             (
-                "harmful_jailbreak",
+                "harmful_test_jailbreak",
                 add_instr_suffix(
                     JAILBREAK_SUFFIX[args.chat_model_name], harmful_test_non_refused
                 ),
             ),
         ]
     ):
-        if (
-            os.path.isfile(os.path.join(output_folder, f"{key}_cosine_sim.pt"))
-            and not args.override
-        ):
-            print(f"'{key}' cosine computation already exists, skipping.")
+        if len(examples) == 0:
+            print("No examples in:", key)
+            continue
         cosine = get_mean_cosine_activations(
             model_and_tokenizer.model,
             model_and_tokenizer.tokenizer,
