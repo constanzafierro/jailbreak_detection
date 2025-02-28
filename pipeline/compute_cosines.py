@@ -252,9 +252,10 @@ def main(args):
             model_and_tokenizer.tokenize_instructions_fn(),
             directions,
             model_and_tokenizer.get_module("layer"),
+            batch_size=args.batch_size,
         )
         assert torch.sum(cosine.isnan()).item() == 0, key
-        wandb.run.sumary[f"n_{key}"] = len(examples)
+        wandb.run.summary[f"n_{key}"] = len(examples)
         torch.save(cosine, os.path.join(output_folder, f"{key}_cosine_sim.pt"))
     with open(os.path.join(output_folder, "direction_names.json"), "w") as f:
         json.dump(direction_names, f)
@@ -273,6 +274,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_test", type=int, default=128)
     parser.add_argument("--n_train", type=int, default=128)
     parser.add_argument("--n_val", type=int, default=32)
+    parser.add_argument("--batch_size", type=int, default=32)
     args = parser.parse_args()
 
     wandb.init(
