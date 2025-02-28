@@ -14,7 +14,7 @@ from tqdm import tqdm
 from transformers import GenerationConfig
 
 from dataset.load_dataset import load_dataset, load_dataset_split
-from pipeline.compute_directions import ModelAndTokenizer, filter_data
+from pipeline.compute_directions import ModelAndTokenizer, load_and_sample_datasets
 from pipeline.utils.hook_utils import add_hooks
 from pipeline.submodules.select_direction import get_refusal_scores
 
@@ -185,22 +185,33 @@ def main(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_and_tokenizer = ModelAndTokenizer(args.chat_model_name)
 
+    _, _, harmful_val, harmless_val = load_and_sample_datasets(args.n_train, args.n_val)
+    harmful_val_refused, harmful_val_non_refused = split_by_refusal(
+        model_and_tokenizer, harmful_val
+    )
     jailbreak_bench = load_dataset("jailbreakbench")
     harmbench = load_dataset("harmbench_test")
-    harmful_refused, harmful_non_refused = split_by_refusal(
+    harmful_test_refused, harmful_test_non_refused = split_by_refusal(
         model_and_tokenizer, jailbreak_bench + harmbench
     )
     random.seed(42)
     harmful_test = random.sample(jailbreak_bench + harmbench, args.n_test)
-    harmful_refused = random.sample(
-        harmful_refused, min(args.n_test, len(harmful_refused))
+    harmful_test_refused = random.sample(
+        harmful_test_refused, min(args.n_test, len(harmful_test_refused))
     )
-    harmful_non_refused = random.sample(
-        harmful_non_refused, min(args.n_test, len(harmful_non_refused))
+    harmful_test_non_refused = random.sample(
+        harmful_test_non_refused, min(args.n_test, len(harmful_test_non_refused))
     )
     harmless_test = random.sample(
         load_dataset_split(harmtype="harmless", split="test", instructions_only=True),
         args.n_test,
+    )
+
+    harmful_val_refused = random.sample(
+        harmful_val_refused, min(args.n_test, len(harmful_val_refused))
+    )
+    harmful_val_non_refused = random.sample(
+        harmful_val_non_refused, min(args.n_test, len(harmful_val_non_refused))
     )
 
     direction_names = []
@@ -212,13 +223,14 @@ def main(args):
     for key, examples in tqdm(
         [
             ("harmful_test", harmful_test),
-            ("harmful_refused", harmful_refused),
-            ("harmful_non_refused", harmful_non_refused),
+            ("harmful_test_refused", harmful_test_refused),
+            ("harmful_test_non_refused", harmful_test_non_refused),
             ("harmless_test", harmless_test),
+            ("harmless_val", harmless_val),
             (
                 "harmful_jailbreak",
                 add_instr_suffix(
-                    JAILBREAK_SUFFIX[args.chat_model_name], harmful_refused
+                    JAILBREAK_SUFFIX[args.chat_model_name], harmful_test_non_refused
                 ),
             ),
         ]
@@ -247,6 +259,8 @@ if __name__ == "__main__":
     parser.add_argument("--directions_folder", type=str, required=True)
     parser.add_argument("--output_folder", type=str, required=True)
     parser.add_argument("--n_test", type=int, default=128)
+    parser.add_argument("--n_train", type=int, default=128)
+    parser.add_argument("--n_val", type=int, default=32)
     args = parser.parse_args()
 
     wandb.init(
