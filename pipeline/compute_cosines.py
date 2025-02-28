@@ -235,6 +235,11 @@ def main(args):
             ),
         ]
     ):
+        if (
+            os.path.isfile(os.path.join(output_folder, f"{key}_cosine_sim.pt"))
+            and not args.override
+        ):
+            print(f"'{key}' cosine computation already exists, skipping.")
         cosine = get_mean_cosine_activations(
             model_and_tokenizer.model,
             model_and_tokenizer.tokenizer,
@@ -261,6 +266,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_test", type=int, default=128)
     parser.add_argument("--n_train", type=int, default=128)
     parser.add_argument("--n_val", type=int, default=32)
+    parser.add_argument("--override", action="store_true")
     args = parser.parse_args()
 
     wandb.init(
