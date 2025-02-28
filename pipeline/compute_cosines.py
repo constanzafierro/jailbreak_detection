@@ -227,6 +227,8 @@ def main(args):
             ("harmful_test_non_refused", harmful_test_non_refused),
             ("harmless_test", harmless_test),
             ("harmless_val", harmless_val),
+            ("harmful_val_refused", harmful_val_refused),
+            ("harmful_val_non_refused", harmful_val_non_refused),
             (
                 "harmful_jailbreak",
                 add_instr_suffix(
