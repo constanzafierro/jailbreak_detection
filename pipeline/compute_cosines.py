@@ -197,6 +197,15 @@ def main(args):
     harmful_test_refused, harmful_test_non_refused = split_by_refusal(
         model_and_tokenizer, jailbreak_bench + harmbench
     )
+    jailbreak_suffix = add_instr_suffix(
+        JAILBREAK_SUFFIX[args.chat_model_name],
+        harmful_test_refused,
+        instructions_only=True,
+    )
+    jailbreak_refused, jailbreak_non_refused = split_by_refusal(
+        model_and_tokenizer, jailbreak_suffix
+    )
+
     random.seed(42)
     harmful_test = random.sample(jailbreak_bench + harmbench, args.n_test)
     harmful_test_refused = random.sample(
@@ -232,14 +241,8 @@ def main(args):
             ("harmless_val", harmless_val),
             ("harmful_val_refused", harmful_val_refused),
             ("harmful_val_non_refused", harmful_val_non_refused),
-            (
-                "harmful_test_jailbreak",
-                add_instr_suffix(
-                    JAILBREAK_SUFFIX[args.chat_model_name],
-                    harmful_test_non_refused,
-                    instructions_only=True,
-                ),
-            ),
+            ("harmful_test_jailbreak_refused", jailbreak_refused),
+            ("harmful_test_jailbreak_non_refused", jailbreak_non_refused),
         ]
     ):
         if len(examples) == 0:
