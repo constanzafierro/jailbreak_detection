@@ -141,15 +141,18 @@ def generate_completions(
     return completions
 
 
-def add_instr_suffix(suffix, dataset):
+def add_instr_suffix(suffix, dataset, instructions_only=False):
     ds = []
     for ex in dataset:
-        ds.append(
-            {
-                "category": ex["category"],
-                "instruction": "{}{}".format(suffix, ex["instruction"]),
-            }
-        )
+        if instructions_only:
+            ds.append("{}{}".format(suffix, ex))
+        else:
+            ds.append(
+                {
+                    "category": ex["category"],
+                    "instruction": "{}{}".format(suffix, ex["instruction"]),
+                }
+            )
     return ds
 
 
@@ -189,8 +192,8 @@ def main(args):
     harmful_val_refused, harmful_val_non_refused = split_by_refusal(
         model_and_tokenizer, harmful_val
     )
-    jailbreak_bench = load_dataset("jailbreakbench")
-    harmbench = load_dataset("harmbench_test")
+    jailbreak_bench = load_dataset("jailbreakbench", instructions_only=True)
+    harmbench = load_dataset("harmbench_test", instructions_only=True)
     harmful_test_refused, harmful_test_non_refused = split_by_refusal(
         model_and_tokenizer, jailbreak_bench + harmbench
     )
@@ -248,6 +251,8 @@ def main(args):
             directions,
             model_and_tokenizer.get_module("layer"),
         )
+        assert torch.sum(cosine.isnan()).item() == 0, key
+        wandb.run.sumary[f"n_{key}"] = len(examples)
         torch.save(cosine, os.path.join(output_folder, f"{key}_cosine_sim.pt"))
     with open(os.path.join(output_folder, "direction_names.json"), "w") as f:
         json.dump(direction_names, f)
@@ -266,7 +271,6 @@ if __name__ == "__main__":
     parser.add_argument("--n_test", type=int, default=128)
     parser.add_argument("--n_train", type=int, default=128)
     parser.add_argument("--n_val", type=int, default=32)
-    parser.add_argument("--override", action="store_true")
     args = parser.parse_args()
 
     wandb.init(
