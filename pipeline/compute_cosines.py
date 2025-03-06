@@ -106,7 +106,7 @@ def get_mean_cosine_activations(
                 position=-1,
             ),
         )
-        for layer in range(n_layers)
+        for layer in range(n_layers - 1)
     ]
 
     for i in tqdm(range(0, len(instructions), batch_size)):
