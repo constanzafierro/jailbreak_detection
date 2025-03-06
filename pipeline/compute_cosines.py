@@ -244,7 +244,6 @@ def main(args):
         harmful_test_refused,
         instructions_only=True,
     )
-
     random.seed(42)
     harmful_test = random.sample(jailbreak_bench + harmbench, args.n_test)
     harmful_test_refused = random.sample(
@@ -327,3 +326,4 @@ if __name__ == "__main__":
     )
 
     main(args)
+
