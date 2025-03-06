@@ -104,25 +104,24 @@ def get_mean_cosine_activations(
         )
         for layer in range(n_layers)
     ]
-    pre_hook_extra = (
-        layer_modules[-1],
-        partial(
-            get_cosine_pre_hook,
-            result=last_layer_cosine,
-            d=directions,
-            position=-1,
-            layer=-1,
-        ),
-    )
 
     for i in tqdm(range(0, len(instructions), batch_size)):
         inputs = tokenize_instructions_fn(instructions=instructions[i : i + batch_size])
-        pre_hook_extra = (
-            pre_hook_extra[0],
-            pre_hook_extra[1](from_=i, to=i + batch_size),
-        )
+        pre_hook_extra = [
+            (
+                layer_modules[-1],
+                get_cosine_pre_hook(
+                    result=last_layer_cosine,
+                    from_=i,
+                    to=i + batch_size,
+                    d=directions,
+                    position=-1,
+                    layer=-1,
+                ),
+            )
+        ]
         with add_hooks(
-            module_forward_pre_hooks=fwd_pre_hooks + [pre_hook_extra],
+            module_forward_pre_hooks=fwd_pre_hooks + pre_hook_extra,
             module_forward_hooks=[],
         ):
             model(
