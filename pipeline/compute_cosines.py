@@ -107,9 +107,11 @@ def get_mean_cosine_activations(
     pre_hook_extra = (
         layer_modules[-1],
         partial(
-            get_cosine_pre_hook(
-                result=last_layer_cosine, d=directions, position=-1, layer=-1
-            ),
+            get_cosine_pre_hook,
+            result=last_layer_cosine,
+            d=directions,
+            position=-1,
+            layer=-1,
         ),
     )
 
@@ -326,4 +328,3 @@ if __name__ == "__main__":
     )
 
     main(args)
-
