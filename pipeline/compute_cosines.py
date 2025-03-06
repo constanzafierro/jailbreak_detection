@@ -46,10 +46,12 @@ def get_mean_cosine_pre_hook(
     return hook_fn
 
 
-def get_cosine_pre_hook(
+def get_cosine_mean_and_per_example_pre_hook(
     result: Float[Tensor, "dirs n_examples"],
     from_,
     to,
+    cache: Float[Tensor, "dirs layer"],
+    n_samples,
     d: Float[Tensor, "dirs layer d_model"],
     position: List[int],
     layer: int,
@@ -63,7 +65,9 @@ def get_cosine_pre_hook(
         directions = d[:, layer, :].unsqueeze(1)  # dirs, 1, d_model
         # batch_size, d_model -> 1, batch_size, d_model
         activation = activation[:, position, :].unsqueeze(0)
-        result[:, from_:to] += cos(directions, activation)
+        cos_matrix = cos(directions, activation)
+        result[:, from_:to] += cos_matrix
+        cache[:, layer] += (1.0 / n_samples) * cos_matrix.sum(dim=1)
 
     return hook_fn
 
@@ -110,9 +114,11 @@ def get_mean_cosine_activations(
         pre_hook_extra = [
             (
                 layer_modules[-1],
-                get_cosine_pre_hook(
+                get_cosine_mean_and_per_example_pre_hook(
                     result=last_layer_cosine,
                     from_=i,
+                    cache=mean_cosine,
+                    n_samples=n_samples,
                     to=i + batch_size,
                     d=directions,
                     position=-1,
