@@ -10,6 +10,7 @@ import torch.nn as nn
 import wandb
 from jaxtyping import Float
 from torch import Tensor
+from functools import partial
 from tqdm import tqdm
 from transformers import GenerationConfig
 
@@ -45,6 +46,28 @@ def get_mean_cosine_pre_hook(
     return hook_fn
 
 
+def get_cosine_pre_hook(
+    result: Float[Tensor, "dirs n_examples"],
+    from_,
+    to,
+    d: Float[Tensor, "dirs layer d_model"],
+    position: List[int],
+    layer: int,
+):
+    cos = nn.CosineSimilarity(dim=2)
+
+    def hook_fn(module, input):
+        activation: Float[Tensor, "batch_size seq_len d_model"] = (
+            input[0].clone().to(result)
+        )
+        directions = d[:, layer, :].unsqueeze(1)  # dirs, 1, d_model
+        # batch_size, d_model -> 1, batch_size, d_model
+        activation = activation[:, position, :].unsqueeze(0)
+        result[:, from_:to] += cos(directions, activation)
+
+    return hook_fn
+
+
 def get_mean_cosine_activations(
     model,
     tokenizer,
@@ -64,6 +87,9 @@ def get_mean_cosine_activations(
     mean_cosine = torch.zeros(
         (n_directions, n_layers), dtype=torch.float64, device=model.device
     )
+    last_layer_cosine = torch.zeros(
+        (n_directions, n_samples), dtype=torch.float64, device=model.device
+    )
 
     fwd_pre_hooks = [
         (
@@ -78,17 +104,31 @@ def get_mean_cosine_activations(
         )
         for layer in range(n_layers)
     ]
+    pre_hook_extra = (
+        layer_modules[-1],
+        partial(
+            get_cosine_pre_hook(
+                result=last_layer_cosine, d=directions, position=-1, layer=-1
+            ),
+        ),
+    )
 
     for i in tqdm(range(0, len(instructions), batch_size)):
         inputs = tokenize_instructions_fn(instructions=instructions[i : i + batch_size])
-
-        with add_hooks(module_forward_pre_hooks=fwd_pre_hooks, module_forward_hooks=[]):
+        pre_hook_extra = (
+            pre_hook_extra[0],
+            pre_hook_extra[1](from_=i, to=i + batch_size),
+        )
+        with add_hooks(
+            module_forward_pre_hooks=fwd_pre_hooks + pre_hook_extra,
+            module_forward_hooks=[],
+        ):
             model(
                 input_ids=inputs.input_ids.to(model.device),
                 attention_mask=inputs.attention_mask.to(model.device),
             )
 
-    return mean_cosine.detach().cpu()
+    return mean_cosine.detach().cpu(), last_layer_cosine.detach().cpu()
 
 
 def generate_completions(
@@ -246,7 +286,7 @@ def main(args):
         if len(examples) == 0:
             print("No examples in:", key)
             continue
-        cosine = get_mean_cosine_activations(
+        cosine_mean, cosine_last = get_mean_cosine_activations(
             model_and_tokenizer.model,
             model_and_tokenizer.tokenizer,
             examples,
@@ -255,9 +295,10 @@ def main(args):
             model_and_tokenizer.get_module("layer"),
             batch_size=args.batch_size,
         )
-        assert torch.sum(cosine.isnan()).item() == 0, key
+        assert torch.sum(cosine_mean.isnan()).item() == 0, key
         wandb.run.summary[f"n_{key}"] = len(examples)
-        torch.save(cosine, os.path.join(output_folder, f"{key}_cosine_sim.pt"))
+        torch.save(cosine_mean, os.path.join(output_folder, f"{key}_cosine_mean.pt"))
+        torch.save(cosine_last, os.path.join(output_folder, f"{key}_cosine_last.pt"))
     with open(os.path.join(output_folder, "direction_names.json"), "w") as f:
         json.dump(direction_names, f)
 
