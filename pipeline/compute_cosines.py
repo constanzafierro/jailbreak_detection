@@ -122,7 +122,7 @@ def get_mean_cosine_activations(
             pre_hook_extra[1](from_=i, to=i + batch_size),
         )
         with add_hooks(
-            module_forward_pre_hooks=fwd_pre_hooks + pre_hook_extra,
+            module_forward_pre_hooks=fwd_pre_hooks + [pre_hook_extra],
             module_forward_hooks=[],
         ):
             model(
